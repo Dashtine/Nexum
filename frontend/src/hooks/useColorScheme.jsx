@@ -118,9 +118,7 @@ export const COLOR_SCHEMES = {
   },
 }
 
-import { getUserId } from '../utils/auth'
-
-function getStorageKey() { return `nexum-color-scheme-${getUserId() || 'default'}` }
+// Storage key built with userId passed from App
 
 function applyScheme(schemeId, isDark) {
   const scheme = COLOR_SCHEMES[schemeId]
@@ -140,15 +138,23 @@ function applyScheme(schemeId, isDark) {
   root.style.setProperty('--color-border', colors.border)
 }
 
-export function useColorScheme(isDark) {
+export function useColorScheme(isDark, userId) {
+  const storageKey = `nexum-color-scheme-${userId || 'default'}`
+
   const [schemeId, setSchemeId] = useState(() => {
-    return localStorage.getItem(getStorageKey()) || 'amber'
+    return localStorage.getItem(storageKey) || 'amber'
   })
+
+  // Re-load when userId changes
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey)
+    setSchemeId(saved || 'amber')
+  }, [storageKey])
 
   useEffect(() => {
     applyScheme(schemeId, isDark)
-    localStorage.setItem(getStorageKey(), schemeId)
-  }, [schemeId, isDark])
+    localStorage.setItem(storageKey, schemeId)
+  }, [schemeId, isDark, storageKey])
 
   const setColorScheme = (id) => {
     if (COLOR_SCHEMES[id]) setSchemeId(id)

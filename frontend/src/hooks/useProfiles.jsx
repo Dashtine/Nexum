@@ -1,29 +1,30 @@
-import { useState, useCallback } from 'react'
-import { getUserId } from '../utils/auth'
-
-function getStorageKey() {
-  return `nexum-profiles-${getUserId() || 'default'}`
-}
+import { useState, useEffect, useCallback } from 'react'
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
 }
 
-function loadProfiles() {
-  try {
-    const raw = localStorage.getItem(getStorageKey())
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
+export function useProfiles(userId) {
+  const storageKey = `nexum-profiles-${userId || 'default'}`
+
+  const [profiles, setProfiles] = useState(() => {
+    try {
+      const raw = localStorage.getItem(storageKey)
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  })
+
+  // Re-load when userId changes
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey)
+      setProfiles(raw ? JSON.parse(raw) : [])
+    } catch { setProfiles([]) }
+  }, [storageKey])
+
+  const persist = (updated) => {
+    localStorage.setItem(storageKey, JSON.stringify(updated))
   }
-}
-
-function persistProfiles(profiles) {
-  localStorage.setItem(getStorageKey(), JSON.stringify(profiles))
-}
-
-export function useProfiles() {
-  const [profiles, setProfiles] = useState(loadProfiles)
 
   const saveProfile = useCallback((data) => {
     setProfiles(prev => {
@@ -35,18 +36,18 @@ export function useProfiles() {
       } else {
         updated = [...prev, { ...data, id: generateId() }]
       }
-      persistProfiles(updated)
+      localStorage.setItem(storageKey, JSON.stringify(updated))
       return updated
     })
-  }, [])
+  }, [storageKey])
 
   const deleteProfile = useCallback((id) => {
     setProfiles(prev => {
       const updated = prev.filter(p => p.id !== id)
-      persistProfiles(updated)
+      localStorage.setItem(storageKey, JSON.stringify(updated))
       return updated
     })
-  }, [])
+  }, [storageKey])
 
   return { profiles, saveProfile, deleteProfile }
 }

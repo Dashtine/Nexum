@@ -22,6 +22,10 @@ export function broadcast(userId, level, message, meta = {}) {
   }
   const data = `data: ${JSON.stringify(entry)}\n\n`
   for (const client of session.logClients) {
-    client.write(data)
+    try {
+      client.write(data)
+    } catch {
+      session.logClients.delete(client)
+    }
   }
 }
