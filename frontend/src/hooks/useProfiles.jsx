@@ -1,6 +1,9 @@
 import { useState, useCallback } from 'react'
+import { getUserId } from '../utils/auth'
 
-const STORAGE_KEY = 'nexum-profiles'
+function getStorageKey() {
+  return `nexum-profiles-${getUserId() || 'default'}`
+}
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
@@ -8,7 +11,7 @@ function generateId() {
 
 function loadProfiles() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(getStorageKey())
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
@@ -16,7 +19,7 @@ function loadProfiles() {
 }
 
 function persistProfiles(profiles) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles))
+  localStorage.setItem(getStorageKey(), JSON.stringify(profiles))
 }
 
 export function useProfiles() {
