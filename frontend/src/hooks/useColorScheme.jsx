@@ -120,7 +120,7 @@ export const COLOR_SCHEMES = {
 
 // Storage key built with userId passed from App
 
-function applyScheme(schemeId, isDark) {
+export function applyScheme(schemeId, isDark) {
   const scheme = COLOR_SCHEMES[schemeId]
   if (!scheme) return
 

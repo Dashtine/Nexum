@@ -7,7 +7,7 @@ import { API_BASE, getUserId, authHeaders } from '../utils/auth'
 
 const SYMBOLS = ['NQ', 'MNQ', 'GC', 'MGC']
 
-export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile, onDeleteProfile, schemeId, onSetColorScheme, onLogout }) {
+export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile, onDeleteProfile, schemeId, onSetColorScheme, onLogout, prefs, updatePrefs }) {
   const { isConnected, isConnecting, connect, disconnect } = useConnection()
   const { logs, clearLogs } = useLogs()
   const logEndRef = useRef(null)
@@ -22,9 +22,9 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
   const [selectedSymbol, setSelectedSymbol] = useState('NQ')
   const [showSaveInput, setShowSaveInput] = useState(false)
 
-  // Auto-renew token state
-  const [autoRenewEnabled, setAutoRenewEnabled] = useState(() => localStorage.getItem(`nexum-auto-renew-${getUserId()}`) === 'true')
-  const [autoRenewTime, setAutoRenewTime] = useState(() => localStorage.getItem(`nexum-auto-renew-time-${getUserId()}`) || '04:00')
+  // Auto-renew token state (synced from server prefs)
+  const autoRenewEnabled = prefs.autoRenew?.enabled || false
+  const autoRenewTime = prefs.autoRenew?.time || '04:00'
 
   // Testing state
   const [sending, setSending] = useState(false)
@@ -125,13 +125,11 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
   }
 
   const handleAutoRenewToggle = (enabled) => {
-    setAutoRenewEnabled(enabled)
-    localStorage.setItem(`nexum-auto-renew-${getUserId()}`, String(enabled))
+    updatePrefs({ autoRenew: { ...prefs.autoRenew, enabled } })
   }
 
   const handleAutoRenewTimeChange = (time) => {
-    setAutoRenewTime(time)
-    localStorage.setItem(`nexum-auto-renew-time-${getUserId()}`, time)
+    updatePrefs({ autoRenew: { ...prefs.autoRenew, time } })
   }
 
   const sendTestOrder = async (side) => {

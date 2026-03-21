@@ -2,6 +2,9 @@
 // All routes use req.userId (set by auth middleware) to get the correct session.
 
 import { Router } from 'express'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { login, setCredentials, clearCredentials, searchAccounts, startTokenRefresh, stopTokenRefresh, getToken } from '../topstepx/auth.js'
 import { connectSignalR, disconnectSignalR, isConnected } from '../topstepx/signalr.js'
 import { searchOpenPositions, searchContracts } from '../topstepx/orders.js'
@@ -9,7 +12,40 @@ import { updatePosition, clearPositions } from '../topstepx/state.js'
 import { broadcast } from '../logs.js'
 import { getSession, clearSessionState } from '../sessions.js'
 
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const DATA_DIR = join(__dirname, '..', '..', 'data')
+
+// Ensure data directory exists
+if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true })
+
+function prefsPath(userId) {
+  return join(DATA_DIR, `${userId}.json`)
+}
+
+function loadPrefs(userId) {
+  try {
+    return JSON.parse(readFileSync(prefsPath(userId), 'utf-8'))
+  } catch {
+    return { profiles: [], colorScheme: 'amber', theme: 'dark', autoRenew: { enabled: false, time: '04:00' } }
+  }
+}
+
+function savePrefs(userId, prefs) {
+  writeFileSync(prefsPath(userId), JSON.stringify(prefs, null, 2))
+}
+
 const router = Router()
+
+// GET /api/preferences — load user preferences
+router.get('/preferences', (req, res) => {
+  res.json(loadPrefs(req.userId))
+})
+
+// PUT /api/preferences — save user preferences
+router.put('/preferences', (req, res) => {
+  savePrefs(req.userId, req.body)
+  res.json({ success: true })
+})
 
 // POST /api/connect — validates credentials, starts SignalR, stores session.
 router.post('/connect', async (req, res) => {
