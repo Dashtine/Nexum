@@ -23,8 +23,8 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
   const [showSaveInput, setShowSaveInput] = useState(false)
 
   // Auto-renew token state
-  const [autoRenewEnabled, setAutoRenewEnabled] = useState(() => localStorage.getItem('nexum-auto-renew') === 'true')
-  const [autoRenewTime, setAutoRenewTime] = useState(() => localStorage.getItem('nexum-auto-renew-time') || '04:00')
+  const [autoRenewEnabled, setAutoRenewEnabled] = useState(() => localStorage.getItem(`nexum-auto-renew-${getUserId()}`) === 'true')
+  const [autoRenewTime, setAutoRenewTime] = useState(() => localStorage.getItem(`nexum-auto-renew-time-${getUserId()}`) || '04:00')
 
   // Testing state
   const [sending, setSending] = useState(false)
@@ -126,12 +126,12 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
 
   const handleAutoRenewToggle = (enabled) => {
     setAutoRenewEnabled(enabled)
-    localStorage.setItem('nexum-auto-renew', String(enabled))
+    localStorage.setItem(`nexum-auto-renew-${getUserId()}`, String(enabled))
   }
 
   const handleAutoRenewTimeChange = (time) => {
     setAutoRenewTime(time)
-    localStorage.setItem('nexum-auto-renew-time', time)
+    localStorage.setItem(`nexum-auto-renew-time-${getUserId()}`, time)
   }
 
   const sendTestOrder = async (side) => {

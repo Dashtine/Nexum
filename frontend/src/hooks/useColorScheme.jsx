@@ -118,7 +118,9 @@ export const COLOR_SCHEMES = {
   },
 }
 
-const STORAGE_KEY = 'nexum-color-scheme'
+import { getUserId } from '../utils/auth'
+
+function getStorageKey() { return `nexum-color-scheme-${getUserId() || 'default'}` }
 
 function applyScheme(schemeId, isDark) {
   const scheme = COLOR_SCHEMES[schemeId]
@@ -140,12 +142,12 @@ function applyScheme(schemeId, isDark) {
 
 export function useColorScheme(isDark) {
   const [schemeId, setSchemeId] = useState(() => {
-    return localStorage.getItem(STORAGE_KEY) || 'amber'
+    return localStorage.getItem(getStorageKey()) || 'amber'
   })
 
   useEffect(() => {
     applyScheme(schemeId, isDark)
-    localStorage.setItem(STORAGE_KEY, schemeId)
+    localStorage.setItem(getStorageKey(), schemeId)
   }, [schemeId, isDark])
 
   const setColorScheme = (id) => {

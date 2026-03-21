@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { API_BASE, getToken } from '../utils/auth'
+import { API_BASE, getToken, getUserId } from '../utils/auth'
 
-const STORAGE_KEY = 'nexum-logs'
+function getStorageKey() { return `nexum-logs-${getUserId() || 'default'}` }
 
 function loadLogs() {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
+    const raw = sessionStorage.getItem(getStorageKey())
     return raw ? JSON.parse(raw) : []
   } catch {
     return []
@@ -18,7 +18,7 @@ export function useLogs() {
 
   // Persist logs to sessionStorage whenever they change
   useEffect(() => {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(logs))
+    sessionStorage.setItem(getStorageKey(), JSON.stringify(logs))
   }, [logs])
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function useLogs() {
 
   const clearLogs = useCallback(() => {
     setLogs([])
-    sessionStorage.removeItem(STORAGE_KEY)
+    sessionStorage.removeItem(getStorageKey())
   }, [])
 
   return { logs, clearLogs }

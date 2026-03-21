@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react'
+import { getUserId } from '../utils/auth'
+
+function themeKey() { return `nexum-theme-${getUserId() || 'default'}` }
 
 export function useTheme() {
   const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('nexum-theme')
+    const saved = localStorage.getItem(themeKey())
     return saved ? saved === 'dark' : true
   })
 
@@ -13,7 +16,7 @@ export function useTheme() {
     } else {
       root.classList.remove('dark')
     }
-    localStorage.setItem('nexum-theme', isDark ? 'dark' : 'light')
+    localStorage.setItem(themeKey(), isDark ? 'dark' : 'light')
   }, [isDark])
 
   const toggleTheme = () => setIsDark(prev => !prev)
