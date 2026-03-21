@@ -1,20 +1,18 @@
-// TopstepX order placement and position management.
-// Called by: webhook.js (placeMarketOrder), api.js (searchOpenPositions on connect)
+// TopstepX order placement and position management — per-user session support.
+// All functions accept a session object to get the correct user's token.
 
 import { getToken } from './auth.js'
 
 const API_BASE = 'https://api.topstepx.com'
 
 // Places a market order with optional TP/SL brackets.
-// Called by: webhook.js when a valid signal is received.
-export async function placeMarketOrder({ accountId, contractId, side, size, takeProfitTicks = 0, stopLossTicks = 0}) {
-  const token = await getToken()
+export async function placeMarketOrder(session, { accountId, contractId, side, size, takeProfitTicks = 0, stopLossTicks = 0 }) {
+  const token = await getToken(session)
   const orderSide = side === 'buy' ? 0 : 1
 
   const body = { accountId, contractId, type: 2, side: orderSide, size }
 
   if (orderSide === 0) {
-    // Buy / Long
     if (takeProfitTicks > 0) {
       body.takeProfitBracket = { ticks: Math.abs(takeProfitTicks), type: 1 }
     }
@@ -22,7 +20,6 @@ export async function placeMarketOrder({ accountId, contractId, side, size, take
       body.stopLossBracket = { ticks: -Math.abs(stopLossTicks), type: 4 }
     }
   } else {
-    // Sell / Short
     if (takeProfitTicks > 0) {
       body.takeProfitBracket = { ticks: -Math.abs(takeProfitTicks), type: 1 }
     }
@@ -54,15 +51,14 @@ export async function placeMarketOrder({ accountId, contractId, side, size, take
 }
 
 // Places a standalone limit order.
-// Used by: webhook.js for the take-profit exit order.
-export async function placeLimitOrder({ accountId, contractId, side, size, limitPrice }) {
-  const token = await getToken()
+export async function placeLimitOrder(session, { accountId, contractId, side, size, limitPrice }) {
+  const token = await getToken(session)
   const orderSide = side === 'buy' ? 0 : 1
 
   const body = {
     accountId,
     contractId,
-    type: 1, // Limit order
+    type: 1,
     side: orderSide,
     size,
     limitPrice
@@ -91,15 +87,14 @@ export async function placeLimitOrder({ accountId, contractId, side, size, limit
 }
 
 // Places a standalone stop order.
-// Used by: webhook.js for the stop-loss exit order.
-export async function placeStopOrder({ accountId, contractId, side, size, stopPrice }) {
-  const token = await getToken()
+export async function placeStopOrder(session, { accountId, contractId, side, size, stopPrice }) {
+  const token = await getToken(session)
   const orderSide = side === 'buy' ? 0 : 1
 
   const body = {
     accountId,
     contractId,
-    type: 4, // Stop order
+    type: 4,
     side: orderSide,
     size,
     stopPrice
@@ -127,11 +122,10 @@ export async function placeStopOrder({ accountId, contractId, side, size, stopPr
   return data
 }
 
-// Searches for contracts by text. live=false for practice accounts, live=true for funded.
-// Called by: api.js on connect to resolve symbol to full contract ID.
-export async function searchContracts(searchText, live = false) {
-  live = false // Live accounts are not yet available for the API
-  const token = await getToken()
+// Searches for contracts by text.
+export async function searchContracts(session, searchText, live = false) {
+  live = false
+  const token = await getToken(session)
   const res = await fetch(`${API_BASE}/api/Contract/search`, {
     method: 'POST',
     headers: {
@@ -148,9 +142,9 @@ export async function searchContracts(searchText, live = false) {
   return data.contracts || []
 }
 
-// Cancels a pending order. Called by: future use (manual cancel from frontend).
-export async function cancelOrder(accountId, orderId) {
-  const token = await getToken()
+// Cancels a pending order.
+export async function cancelOrder(session, accountId, orderId) {
+  const token = await getToken(session)
   const res = await fetch(`${API_BASE}/api/Order/cancel`, {
     method: 'POST',
     headers: {
@@ -162,9 +156,9 @@ export async function cancelOrder(accountId, orderId) {
   return res.json()
 }
 
-// Closes an entire position for a contract. Called by: future use (manual close).
-export async function closePosition(accountId, contractId) {
-  const token = await getToken()
+// Closes an entire position for a contract.
+export async function closePosition(session, accountId, contractId) {
+  const token = await getToken(session)
   const res = await fetch(`${API_BASE}/api/Position/closeContract`, {
     method: 'POST',
     headers: {
@@ -176,10 +170,9 @@ export async function closePosition(accountId, contractId) {
   return res.json()
 }
 
-// Fetches current open positions from the REST API. Used to seed in-memory state on connect.
-// Called by: api.js on connect.
-export async function searchOpenPositions(accountId) {
-  const token = await getToken()
+// Fetches current open positions from the REST API.
+export async function searchOpenPositions(session, accountId) {
+  const token = await getToken(session)
   const res = await fetch(`${API_BASE}/api/Position/searchOpen`, {
     method: 'POST',
     headers: {

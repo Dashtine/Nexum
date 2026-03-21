@@ -1,31 +1,24 @@
-// TopstepX authentication and token management.
-// Called by: api.js (connect/disconnect), orders.js (getToken for API calls)
+// TopstepX authentication and token management — per-user session support.
+// All functions accept a session object that holds per-user token/credential state.
 
 const API_BASE = 'https://api.topstepx.com'
 
-let cachedToken = null
-let tokenExpiry = 0
-let refreshTimer = null
-let storedUsername = null
-let storedApiKey = null
-
-// Stores credentials in memory for token refresh. Called by api.js on connect.
-export function setCredentials(username, apiKey) {
-  storedUsername = username
-  storedApiKey = apiKey
+// Stores credentials on the session for token refresh.
+export function setCredentials(session, username, apiKey) {
+  session.storedUsername = username
+  session.storedApiKey = apiKey
 }
 
-// Clears stored credentials. Called by api.js on disconnect.
-export function clearCredentials() {
-  storedUsername = null
-  storedApiKey = null
-  cachedToken = null
-  tokenExpiry = 0
+// Clears stored credentials from session.
+export function clearCredentials(session) {
+  session.storedUsername = null
+  session.storedApiKey = null
+  session.token = null
+  session.tokenExpiry = 0
 }
 
-// Authenticates with TopstepX and caches the token for 23 hours.
-// Called by: api.js on connect, getToken() on auto-refresh.
-export async function login(username, apiKey) {
+// Authenticates with TopstepX and caches the token on the session for 23 hours.
+export async function login(session, username, apiKey) {
   const res = await fetch(`${API_BASE}/api/Auth/loginKey`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -35,55 +28,54 @@ export async function login(username, apiKey) {
   if (!data.success) {
     throw new Error(`Auth failed: ${data.errorMessage || `errorCode ${data.errorCode}`}`)
   }
-  cachedToken = data.token
-  tokenExpiry = Date.now() + 23 * 60 * 60 * 1000 // 23h (refresh before 24h expiry)
-  console.log('[auth] logged in successfully')
+  session.token = data.token
+  session.tokenExpiry = Date.now() + 23 * 60 * 60 * 1000
+  session.storedUsername = username
+  session.storedApiKey = apiKey
+  console.log(`[auth] ${session.userId} logged in successfully`)
   return data.token
 }
 
-// Returns a valid token, re-authenticating if expired. Uses stored credentials.
-// Called by: orders.js before each API call.
-export async function getToken() {
-  if (cachedToken && Date.now() < tokenExpiry) return cachedToken
-  if (!storedUsername || !storedApiKey) throw new Error('No credentials stored — connect first')
-  return login(storedUsername, storedApiKey)
+// Returns a valid token from session, re-authenticating if expired.
+export async function getToken(session) {
+  if (session.token && Date.now() < session.tokenExpiry) return session.token
+  if (!session.storedUsername || !session.storedApiKey) throw new Error('No credentials stored — connect first')
+  return login(session, session.storedUsername, session.storedApiKey)
 }
 
 // Starts a 30-minute interval that proactively refreshes the token before expiry.
-// Called by: api.js after successful connect.
-export function startTokenRefresh() {
-  if (refreshTimer) clearInterval(refreshTimer)
-  refreshTimer = setInterval(async () => {
-    if (!storedUsername || !storedApiKey) return
-    if (Date.now() > tokenExpiry - 60 * 60 * 1000) {
+export function startTokenRefresh(session) {
+  if (session.refreshTimer) clearInterval(session.refreshTimer)
+  session.refreshTimer = setInterval(async () => {
+    if (!session.storedUsername || !session.storedApiKey) return
+    if (Date.now() > session.tokenExpiry - 60 * 60 * 1000) {
       try {
-        await login(storedUsername, storedApiKey)
-        console.log('[auth] token refreshed proactively')
+        await login(session, session.storedUsername, session.storedApiKey)
+        console.log(`[auth] ${session.userId} token refreshed proactively`)
       } catch (err) {
-        console.error('[auth] token refresh failed:', err.message)
+        console.error(`[auth] ${session.userId} token refresh failed:`, err.message)
       }
     }
   }, 30 * 60 * 1000)
 }
 
-// Stops the token refresh interval. Called by: api.js on disconnect, server.js on shutdown.
-export function stopTokenRefresh() {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-    refreshTimer = null
+// Stops the token refresh interval for a session.
+export function stopTokenRefresh(session) {
+  if (session.refreshTimer) {
+    clearInterval(session.refreshTimer)
+    session.refreshTimer = null
   }
 }
 
 // Validates the current cached token against the TopstepX API.
-// Called by: api.js (optional health check).
-export async function validateToken() {
-  if (!cachedToken) return false
+export async function validateToken(session) {
+  if (!session.token) return false
   try {
     const res = await fetch(`${API_BASE}/api/Auth/validate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${cachedToken}`
+        'Authorization': `Bearer ${session.token}`
       }
     })
     const data = await res.json()
@@ -93,8 +85,7 @@ export async function validateToken() {
   }
 }
 
-// Fetches all active trading accounts. Used to validate the account ID on connect.
-// Called by: api.js on connect.
+// Fetches all active trading accounts. Stateless — just needs a token.
 export async function searchAccounts(token) {
   const res = await fetch(`${API_BASE}/api/Account/search`, {
     method: 'POST',

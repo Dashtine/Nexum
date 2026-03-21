@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-
-const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : ''
+import { API_BASE, authHeaders } from '../utils/auth'
 
 export function useConnection() {
   const [isConnected, setIsConnected] = useState(false)
@@ -8,7 +7,7 @@ export function useConnection() {
 
   // Check initial status on mount
   useEffect(() => {
-    fetch(`${API_BASE}/api/status`)
+    fetch(`${API_BASE}/api/status`, { headers: authHeaders() })
       .then(res => res.json())
       .then(data => setIsConnected(data.connected))
       .catch(() => {})
@@ -19,7 +18,7 @@ export function useConnection() {
     try {
       const res = await fetch(`${API_BASE}/api/connect`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({ username, apiKey, accountId, symbol })
       })
       const data = await res.json()
@@ -36,7 +35,10 @@ export function useConnection() {
 
   const disconnect = useCallback(async () => {
     try {
-      await fetch(`${API_BASE}/api/disconnect`, { method: 'POST' })
+      await fetch(`${API_BASE}/api/disconnect`, {
+        method: 'POST',
+        headers: authHeaders()
+      })
     } catch { /* ignore */ }
     setIsConnected(false)
   }, [])

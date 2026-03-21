@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { API_BASE, getToken } from '../utils/auth'
 
-const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : ''
 const STORAGE_KEY = 'nexum-logs'
 
 function loadLogs() {
@@ -23,7 +23,10 @@ export function useLogs() {
 
   useEffect(() => {
     const connect = () => {
-      const es = new EventSource(`${API_BASE}/api/logs`)
+      const token = getToken()
+      if (!token) return
+
+      const es = new EventSource(`${API_BASE}/api/logs?token=${encodeURIComponent(token)}`)
       esRef.current = es
 
       es.onmessage = (event) => {
@@ -35,7 +38,6 @@ export function useLogs() {
 
       es.onerror = () => {
         es.close()
-        // Auto-reconnect after 2 seconds
         setTimeout(connect, 2000)
       }
     }

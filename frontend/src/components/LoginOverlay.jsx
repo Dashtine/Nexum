@@ -1,22 +1,42 @@
 import { useState } from 'react'
 import { Lock } from 'lucide-react'
-
-const VALID_USERS = ['j<pqismuggle']
+import { API_BASE, setAuth } from '../utils/auth'
 
 export default function LoginOverlay({ onLogin }) {
   const [userId, setUserId] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [shake, setShake] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (VALID_USERS.includes(userId)) {
-      sessionStorage.setItem('nexum-logged-in', 'true')
+    setLoading(true)
+    setError('')
+
+    try {
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, password })
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Login failed')
+        setShake(true)
+        setTimeout(() => setShake(false), 500)
+        return
+      }
+
+      setAuth(data.token, data.userId)
       onLogin()
-    } else {
-      setError('Invalid user ID')
+    } catch {
+      setError('Connection failed')
       setShake(true)
       setTimeout(() => setShake(false), 500)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -28,7 +48,7 @@ export default function LoginOverlay({ onLogin }) {
             <Lock size={24} className="text-[var(--color-accent)]" />
           </div>
           <h1 className="text-xl font-bold text-[var(--color-text-primary)]">NEXUM</h1>
-          <p className="text-sm text-[var(--color-text-secondary)]">Enter your user ID to continue</p>
+          <p className="text-sm text-[var(--color-text-secondary)]">Sign in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -40,15 +60,22 @@ export default function LoginOverlay({ onLogin }) {
             autoFocus
             className="w-full px-4 py-3 rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-[var(--color-accent)] transition-colors mb-3"
           />
+          <input
+            type="password"
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError('') }}
+            placeholder="Password"
+            className="w-full px-4 py-3 rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-sm focus:outline-none focus:border-[var(--color-accent)] transition-colors mb-3"
+          />
           {error && (
             <p className="text-xs text-[var(--color-loss)] mb-3">{error}</p>
           )}
           <button
             type="submit"
-            disabled={!userId.trim()}
+            disabled={!userId.trim() || !password.trim() || loading}
             className="w-full px-4 py-3 rounded-lg text-sm font-semibold bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Continue
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </div>

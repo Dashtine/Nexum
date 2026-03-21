@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
-import { Sun, Moon, Link2, Unlink, Eye, EyeOff, ChevronDown, Save, UserPlus, Trash2, Check, RefreshCw, Clock, ArrowUpCircle, ArrowDownCircle, Loader2, Palette, ScrollText, FlaskConical, X, BarChart3, Download } from 'lucide-react'
+import { Sun, Moon, Link2, Unlink, Eye, EyeOff, ChevronDown, Save, UserPlus, Trash2, Check, RefreshCw, Clock, ArrowUpCircle, ArrowDownCircle, Loader2, Palette, ScrollText, FlaskConical, X, BarChart3, Download, LogOut } from 'lucide-react'
 import { COLOR_SCHEMES } from '../hooks/useColorScheme'
 import { useConnection } from '../hooks/useConnection'
 import { useLogs } from '../hooks/useLogs'
+import { API_BASE, getUserId, authHeaders } from '../utils/auth'
 
 const SYMBOLS = ['NQ', 'MNQ', 'GC', 'MGC']
-const WEBHOOK_URL = import.meta.env.DEV ? 'https://nexum7.app/webhook/' : '/webhook'
 
-export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile, onDeleteProfile, schemeId, onSetColorScheme }) {
+export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile, onDeleteProfile, schemeId, onSetColorScheme, onLogout }) {
   const { isConnected, isConnecting, connect, disconnect } = useConnection()
   const { logs, clearLogs } = useLogs()
   const logEndRef = useRef(null)
@@ -55,7 +55,6 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
   useEffect(() => {
     if (!autoRenewEnabled || !isConnected) return
 
-    const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : ''
     let lastFiredDate = null
 
     const check = () => {
@@ -64,8 +63,8 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
       const localDate = now.toDateString()
 
       if (localTime === autoRenewTime && lastFiredDate !== localDate) {
-        lastFiredDate = etDate
-        fetch(`${API_BASE}/api/refresh-token`, { method: 'POST' }).catch(() => {})
+        lastFiredDate = localDate
+        fetch(`${API_BASE}/api/refresh-token`, { method: 'POST', headers: authHeaders() }).catch(() => {})
       }
     }
 
@@ -137,11 +136,6 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
 
   const sendTestOrder = async (side) => {
     setSending(true)
-    // const message = `Position: ${side === 'buy' ? 'BUY' : 'SELL'}
-    //                  Contracts: 5
-    //                  Entry: 24142.25
-    //                  Take Profit: 24700.00
-    //                  Stop Loss: 24645.254`
 
     const message = `TEST
         Position: ${side === 'buy' ? 'BUY' : 'SELL'}
@@ -149,8 +143,10 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
         TpTicks: ${testTpTicks}
         SlTicks: ${testSlTicks}`
 
+    const webhookUrl = `${API_BASE}/webhook/${getUserId()}`
+
     try {
-      await fetch(WEBHOOK_URL, {
+      await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message }),
@@ -238,7 +234,6 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
   }
 
   const fetchAllBars = async (startTimeUtc, endTimeUtc) => {
-    const API = import.meta.env.DEV ? 'https://nexum7.app' : ''
     const LIMIT = 20000
     let allBars = []
     let currentStart = new Date(startTimeUtc)
@@ -246,9 +241,9 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
 
     while (currentStart < end) {
       setCandleStatus(`Fetching candles... (${allBars.length} so far)`)
-      const res = await fetch(`${API}/api/bars`, {
+      const res = await fetch(`${API_BASE}/api/bars`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders(),
         body: JSON.stringify({
           startTime: currentStart.toISOString(),
           endTime: end.toISOString(),
@@ -294,16 +289,15 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
     setCandleStatus('Starting...')
     try {
       // Work backwards from now until we get less than 20000 bars (meaning we've hit the oldest data)
-      const API = import.meta.env.DEV ? 'https://nexum7.app' : ''
       const LIMIT = 20000
       let allBars = []
       let currentEnd = new Date() // start from now
 
       while (true) {
         setCandleStatus(`Fetching candles... (${allBars.length} so far)`)
-        const res = await fetch(`${API}/api/bars`, {
+        const res = await fetch(`${API_BASE}/api/bars`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({
             startTime: new Date('2000-01-01T00:00:00Z').toISOString(),
             endTime: currentEnd.toISOString(),
@@ -381,6 +375,11 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
             {/* Theme toggle */}
             <button onClick={toggleTheme} className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors">
               {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            <div className="w-px h-5 bg-[var(--color-border)]" />
+            <span className="text-xs text-[var(--color-text-secondary)]">{getUserId()}</span>
+            <button onClick={onLogout} className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-loss)] transition-colors" title="Sign out">
+              <LogOut size={14} />
             </button>
           </div>
         </div>

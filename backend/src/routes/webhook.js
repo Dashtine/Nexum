@@ -1,16 +1,16 @@
-// Webhook handler for TradingView alerts. Parses signal, checks position, places market order.
-// Called by: TradingView (POST /webhook), frontend test buttons (POST /webhook)
+// Webhook handler for TradingView alerts — per-user routing via /webhook/:userId.
+// Each user configures their own webhook URL in TradingView.
 
 import { Router } from 'express'
 import { placeMarketOrder, placeLimitOrder, placeStopOrder } from '../topstepx/orders.js'
 import { hasOpenPosition } from '../topstepx/state.js'
 import { registerBracket } from '../topstepx/brackets.js'
-import { session } from './api.js'
+import { getSession } from '../sessions.js'
 import { broadcast } from '../logs.js'
 
 const router = Router()
 
-// Parses buy/sell signal and parameters from webhook body. Accepts JSON or raw text.
+// Parses buy/sell signal and parameters from webhook body.
 function parseAlertFields(body) {
   const text = typeof body === 'string'
     ? body
@@ -42,12 +42,12 @@ function parseAlertFields(body) {
   }
 }
 
-
-// POST /webhook — receives a TradingView alert and places a market order.
-// Flow: parse signal → check session → check position (O(1)) → place order.
-router.post('/', async (req, res) => {
+// POST /webhook/:userId — receives a TradingView alert and places orders for the specified user.
+router.post('/:userId', async (req, res) => {
 
   const start = Date.now()
+  const userId = req.params.userId
+  const session = getSession(userId)
 
   const secret = process.env.WEBHOOK_SECRET
   if (secret && req.headers['x-webhook-secret'] !== secret) {
@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
   }
 
   if (!session.accountId || !session.contractId) {
-    broadcast('warn', 'Signal received but not connected — ignoring')
+    broadcast(userId, 'warn', 'Signal received but not connected — ignoring')
     return res.status(503).json({ error: 'Not connected. Connect first via the web app.' })
   }
 
@@ -75,7 +75,7 @@ router.post('/', async (req, res) => {
   }
 
   if (hasOpenPosition(session.accountId)) {
-    broadcast('warn', 'Position already open — skipping signal')
+    broadcast(userId, 'warn', 'Position already open — skipping signal')
     return res.status(409).json({ error: 'Position already open. Only one trade at a time.' })
   }
 
@@ -84,9 +84,9 @@ router.post('/', async (req, res) => {
   try {
     if (isTest) {
       // TEST flow: place market order with tick-based brackets
-      broadcast('signal', `TEST order: ${side.toUpperCase()} ${size}x | TP: ${takeProfitTicks} ticks | SL: ${stopLossTicks} ticks`)
+      broadcast(userId, 'signal', `TEST order: ${side.toUpperCase()} ${size}x | TP: ${takeProfitTicks} ticks | SL: ${stopLossTicks} ticks`)
 
-      const entryOrder = await placeMarketOrder({
+      const entryOrder = await placeMarketOrder(session, {
         accountId: session.accountId,
         contractId,
         side,
@@ -96,7 +96,7 @@ router.post('/', async (req, res) => {
       })
 
       const elapsed = Date.now() - start
-      broadcast('trade', `TEST bracket placed: ${side.toUpperCase()} ${size}x ${contractId}`)
+      broadcast(userId, 'trade', `TEST bracket placed: ${side.toUpperCase()} ${size}x ${contractId}`)
 
       return res.json({
         success: true,
@@ -110,18 +110,16 @@ router.post('/', async (req, res) => {
     }
 
     // Normal flow: price-based TP/SL as separate orders
-    // 1. Enter immediately
-    const entryOrder = await placeMarketOrder({
+    const entryOrder = await placeMarketOrder(session, {
       accountId: session.accountId,
       contractId,
       side,
       size
     })
 
-    // 2. TP side is opposite of entry
     const exitSide = side === 'buy' ? 'sell' : 'buy'
 
-    const takeProfitOrder = await placeLimitOrder({
+    const takeProfitOrder = await placeLimitOrder(session, {
       accountId: session.accountId,
       contractId,
       side: exitSide,
@@ -129,8 +127,7 @@ router.post('/', async (req, res) => {
       limitPrice: takeProfitPrice
     })
 
-    // 3. SL side is also opposite of entry
-    const stopLossOrder = await placeStopOrder({
+    const stopLossOrder = await placeStopOrder(session, {
       accountId: session.accountId,
       contractId,
       side: exitSide,
@@ -138,8 +135,6 @@ router.post('/', async (req, res) => {
       stopPrice: stopLossPrice
     })
 
-    // Save the active bracket in memory so SignalR can cancel the sibling
-    // when one exit order fills and the position closes.
     registerBracket({
       accountId: session.accountId,
       contractId,
@@ -149,7 +144,7 @@ router.post('/', async (req, res) => {
     })
 
     const elapsed = Date.now() - start
-    broadcast('trade', `Bracket placed: ${side.toUpperCase()} ${size}x ${contractId}`)
+    broadcast(userId, 'trade', `Bracket placed: ${side.toUpperCase()} ${size}x ${contractId}`)
 
     return res.json({
       success: true,
@@ -162,8 +157,8 @@ router.post('/', async (req, res) => {
       latencyMs: elapsed
     })
   } catch (err) {
-    console.error('[webhook] order failed:', err.message)
-    broadcast('error', `Order failed: ${err.message}`)
+    console.error(`[webhook:${userId}] order failed:`, err.message)
+    broadcast(userId, 'error', `Order failed: ${err.message}`)
     return res.status(500).json({ error: err.message })
   }
 })
