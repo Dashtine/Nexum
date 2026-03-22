@@ -4,7 +4,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { authenticateUser, authMiddleware, verifyToken } from './nexumAuth.js'
-import { addClient } from './logs.js'
+import { addClient, getLogHistory, clearLogHistory } from './logs.js'
 import webhookRouter from './routes/webhook.js'
 import apiRouter from './routes/api.js'
 
@@ -26,6 +26,25 @@ app.post('/api/login', async (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' })
   }
   res.json({ success: true, token: result.token, userId: result.userId })
+})
+
+// GET /api/log-history — fetch stored logs for when the browser was closed
+app.get('/api/log-history', (req, res) => {
+  const token = req.query.token
+  if (!token) return res.status(401).json({ error: 'Missing token' })
+  const decoded = verifyToken(token)
+  if (!decoded) return res.status(401).json({ error: 'Invalid token' })
+  res.json(getLogHistory(decoded.userId))
+})
+
+// POST /api/clear-log-history — clear stored logs
+app.post('/api/clear-log-history', (req, res) => {
+  const token = req.query.token
+  if (!token) return res.status(401).json({ error: 'Missing token' })
+  const decoded = verifyToken(token)
+  if (!decoded) return res.status(401).json({ error: 'Invalid token' })
+  clearLogHistory(decoded.userId)
+  res.json({ success: true })
 })
 
 // SSE endpoint for real-time log streaming — uses token query param for auth.

@@ -1,32 +1,30 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { API_BASE, getToken, getUserId } from '../utils/auth'
-
-function getStorageKey() { return `nexum-logs-${getUserId() || 'default'}` }
-
-function loadLogs() {
-  try {
-    const raw = sessionStorage.getItem(getStorageKey())
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-}
+import { API_BASE, getToken } from '../utils/auth'
 
 export function useLogs() {
-  const [logs, setLogs] = useState(loadLogs)
+  const [logs, setLogs] = useState([])
   const esRef = useRef(null)
 
-  // Persist logs to sessionStorage whenever they change
   useEffect(() => {
-    sessionStorage.setItem(getStorageKey(), JSON.stringify(logs))
-  }, [logs])
+    const token = getToken()
+    if (!token) return
 
-  useEffect(() => {
-    const connect = () => {
-      const token = getToken()
-      if (!token) return
+    // Fetch log history first (logs that happened while browser was closed)
+    fetch(`${API_BASE}/api/log-history?token=${encodeURIComponent(token)}`)
+      .then(res => res.json())
+      .then(history => {
+        if (Array.isArray(history) && history.length > 0) {
+          setLogs(history)
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        // Then connect SSE for new logs
+        connectSSE(token)
+      })
 
-      const es = new EventSource(`${API_BASE}/api/logs?token=${encodeURIComponent(token)}`)
+    function connectSSE(t) {
+      const es = new EventSource(`${API_BASE}/api/logs?token=${encodeURIComponent(t)}`)
       esRef.current = es
 
       es.onmessage = (event) => {
@@ -38,17 +36,20 @@ export function useLogs() {
 
       es.onerror = () => {
         es.close()
-        setTimeout(connect, 2000)
+        setTimeout(() => connectSSE(t), 2000)
       }
     }
 
-    connect()
     return () => esRef.current?.close()
   }, [])
 
   const clearLogs = useCallback(() => {
     setLogs([])
-    sessionStorage.removeItem(getStorageKey())
+    // Also clear server-side history
+    const token = getToken()
+    if (token) {
+      fetch(`${API_BASE}/api/clear-log-history?token=${encodeURIComponent(token)}`, { method: 'POST' }).catch(() => {})
+    }
   }, [])
 
   return { logs, clearLogs }

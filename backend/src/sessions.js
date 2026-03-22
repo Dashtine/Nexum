@@ -24,6 +24,8 @@ export function getSession(userId) {
       accountsSubscriptionActive: false,
       // SSE log clients
       logClients: new Set(),
+      // Server-side log history (kept in memory while session is alive)
+      logHistory: [],
     })
   }
   return sessions.get(userId)
