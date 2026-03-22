@@ -11,6 +11,8 @@ export function getSession(userId) {
       accountId: null,
       contractId: null,
       size: 1,
+      inputAccountId: null,
+      inputSymbol: null,
       // TopstepX auth
       token: null,
       tokenExpiry: 0,
@@ -37,6 +39,8 @@ export function clearSessionState(userId) {
     if (s.refreshTimer) clearInterval(s.refreshTimer)
     s.accountId = null
     s.contractId = null
+    s.inputAccountId = null
+    s.inputSymbol = null
     s.token = null
     s.tokenExpiry = 0
     s.storedUsername = null

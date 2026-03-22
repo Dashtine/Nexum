@@ -4,12 +4,23 @@ import { API_BASE, authHeaders } from '../utils/auth'
 export function useConnection() {
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [connectionInfo, setConnectionInfo] = useState(null)
 
   // Check initial status on mount
   useEffect(() => {
     fetch(`${API_BASE}/api/status`, { headers: authHeaders() })
       .then(res => res.json())
-      .then(data => setIsConnected(data.connected))
+      .then(data => {
+        setIsConnected(data.connected)
+        if (data.connected) {
+          setConnectionInfo({
+            username: data.username,
+            apiKey: data.apiKey,
+            accountId: data.inputAccountId,
+            symbol: data.inputSymbol
+          })
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -41,7 +52,8 @@ export function useConnection() {
       })
     } catch { /* ignore */ }
     setIsConnected(false)
+    setConnectionInfo(null)
   }, [])
 
-  return { isConnected, isConnecting, connect, disconnect }
+  return { isConnected, isConnecting, connectionInfo, connect, disconnect }
 }

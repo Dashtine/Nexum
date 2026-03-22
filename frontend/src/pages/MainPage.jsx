@@ -8,7 +8,7 @@ import { API_BASE, getUserId, authHeaders } from '../utils/auth'
 const SYMBOLS = ['NQ', 'MNQ', 'GC', 'MGC']
 
 export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile, onDeleteProfile, schemeId, onSetColorScheme, onLogout, prefs, updatePrefs }) {
-  const { isConnected, isConnecting, connect, disconnect } = useConnection()
+  const { isConnected, isConnecting, connectionInfo, connect, disconnect } = useConnection()
   const { logs, clearLogs } = useLogs()
   const logEndRef = useRef(null)
 
@@ -45,6 +45,27 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
 
   // Profile delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+
+  // Restore form fields when reconnecting after a refresh
+  useEffect(() => {
+    if (connectionInfo) {
+      if (connectionInfo.username) setUsername(connectionInfo.username)
+      if (connectionInfo.apiKey) setApiKey(connectionInfo.apiKey)
+      if (connectionInfo.accountId) setAccountId(connectionInfo.accountId)
+      if (connectionInfo.symbol) setSelectedSymbol(connectionInfo.symbol)
+      // Find matching profile
+      const match = profiles.find(p =>
+        p.username === connectionInfo.username &&
+        p.apiKey === connectionInfo.apiKey &&
+        p.accountId === connectionInfo.accountId &&
+        p.symbol === connectionInfo.symbol
+      )
+      if (match) {
+        setSelectedProfileId(match.id)
+        setProfileName(match.name)
+      }
+    }
+  }, [connectionInfo, profiles])
 
   // Auto-scroll logs
   useEffect(() => {

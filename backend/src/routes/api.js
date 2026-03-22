@@ -116,6 +116,8 @@ router.post('/connect', async (req, res) => {
     session.accountId = acctId
     session.contractId = resolvedContractId
     session.size = 1
+    session.inputAccountId = accountId
+    session.inputSymbol = symbol
 
     broadcast(userId, 'info', `Connected: ${resolvedContractId} on account ${validAccount.name}. Ready for signals.`)
     res.json({ success: true, accountId: acctId, symbol: resolvedContractId })
@@ -151,7 +153,11 @@ router.get('/status', (req, res) => {
   res.json({
     connected: isConnected(session),
     accountId: session.accountId,
-    symbol: session.contractId
+    symbol: session.contractId,
+    username: session.storedUsername || null,
+    apiKey: session.storedApiKey || null,
+    inputAccountId: session.inputAccountId || null,
+    inputSymbol: session.inputSymbol || null
   })
 })
 
