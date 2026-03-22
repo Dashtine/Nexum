@@ -24,6 +24,9 @@ export function getSession(userId) {
       subscribedAccounts: new Set(),
       intentionalClose: false,
       accountsSubscriptionActive: false,
+      // Auto-renew
+      autoRenewTimer: null,
+      nextRenewAt: null,
       // SSE log clients
       logClients: new Set(),
       // Server-side log history (kept in memory while session is alive)
@@ -50,5 +53,8 @@ export function clearSessionState(userId) {
     s.subscribedAccounts = new Set()
     s.intentionalClose = false
     s.accountsSubscriptionActive = false
+    if (s.autoRenewTimer) clearInterval(s.autoRenewTimer)
+    s.autoRenewTimer = null
+    s.nextRenewAt = null
   }
 }

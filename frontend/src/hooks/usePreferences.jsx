@@ -9,7 +9,7 @@ const DEFAULTS = {
   profiles: [],
   colorScheme: 'amber',
   theme: 'dark',
-  autoRenew: { enabled: false, time: '04:00' }
+  autoRenew: { enabled: false, intervalHours: 6 }
 }
 
 function localKey(userId) {

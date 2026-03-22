@@ -5,6 +5,7 @@ export function useConnection() {
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [connectionInfo, setConnectionInfo] = useState(null)
+  const [nextRenewAt, setNextRenewAt] = useState(null)
 
   // Check initial status on mount
   useEffect(() => {
@@ -19,6 +20,7 @@ export function useConnection() {
             accountId: data.inputAccountId,
             symbol: data.inputSymbol
           })
+          if (data.nextRenewAt) setNextRenewAt(data.nextRenewAt)
         }
       })
       .catch(() => {})
@@ -53,7 +55,8 @@ export function useConnection() {
     } catch { /* ignore */ }
     setIsConnected(false)
     setConnectionInfo(null)
+    setNextRenewAt(null)
   }, [])
 
-  return { isConnected, isConnecting, connectionInfo, connect, disconnect }
+  return { isConnected, isConnecting, connectionInfo, nextRenewAt, connect, disconnect }
 }

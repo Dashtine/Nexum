@@ -26,12 +26,27 @@ function loadPrefs(userId) {
   try {
     return JSON.parse(readFileSync(prefsPath(userId), 'utf-8'))
   } catch {
-    return { profiles: [], colorScheme: 'amber', theme: 'dark', autoRenew: { enabled: false, time: '04:00' } }
+    return { profiles: [], colorScheme: 'amber', theme: 'dark', autoRenew: { enabled: false, intervalHours: 6 } }
   }
 }
 
 function savePrefs(userId, prefs) {
   writeFileSync(prefsPath(userId), JSON.stringify(prefs, null, 2))
+}
+
+function startAutoRenew(session, userId, intervalHours) {
+  if (session.autoRenewTimer) clearInterval(session.autoRenewTimer)
+  const ms = intervalHours * 3600000
+  session.nextRenewAt = Date.now() + ms
+  session.autoRenewTimer = setInterval(async () => {
+    try {
+      await getToken(session)
+      session.nextRenewAt = Date.now() + ms
+      broadcast(userId, 'info', `Token auto-renewed (every ${intervalHours}h)`)
+    } catch (err) {
+      broadcast(userId, 'error', `Auto-renew failed: ${err.message}`)
+    }
+  }, ms)
 }
 
 const router = Router()
@@ -119,6 +134,13 @@ router.post('/connect', async (req, res) => {
     session.inputAccountId = accountId
     session.inputSymbol = symbol
 
+    // Start server-side auto-renew if enabled in prefs
+    const prefs = loadPrefs(userId)
+    const autoRenew = prefs.autoRenew || {}
+    if (autoRenew.enabled && autoRenew.intervalHours > 0) {
+      startAutoRenew(session, userId, autoRenew.intervalHours)
+    }
+
     broadcast(userId, 'info', `Connected: ${resolvedContractId} on account ${validAccount.name}. Ready for signals.`)
     res.json({ success: true, accountId: acctId, symbol: resolvedContractId })
   } catch (err) {
@@ -157,7 +179,8 @@ router.get('/status', (req, res) => {
     username: session.storedUsername || null,
     apiKey: session.storedApiKey || null,
     inputAccountId: session.inputAccountId || null,
-    inputSymbol: session.inputSymbol || null
+    inputSymbol: session.inputSymbol || null,
+    nextRenewAt: session.nextRenewAt || null
   })
 })
 

@@ -8,7 +8,7 @@ import { API_BASE, getUserId, authHeaders } from '../utils/auth'
 const SYMBOLS = ['NQ', 'MNQ', 'GC', 'MGC']
 
 export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile, onDeleteProfile, schemeId, onSetColorScheme, onLogout, prefs, updatePrefs }) {
-  const { isConnected, isConnecting, connectionInfo, connect, disconnect } = useConnection()
+  const { isConnected, isConnecting, connectionInfo, nextRenewAt, connect, disconnect } = useConnection()
   const { logs, clearLogs } = useLogs()
   const logEndRef = useRef(null)
 
@@ -24,7 +24,8 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
 
   // Auto-renew token state (synced from server prefs)
   const autoRenewEnabled = prefs.autoRenew?.enabled || false
-  const autoRenewTime = prefs.autoRenew?.time || '04:00'
+  const autoRenewInterval = prefs.autoRenew?.intervalHours || 6
+  const [renewCountdown, setRenewCountdown] = useState('')
 
   // Testing state
   const [sending, setSending] = useState(false)
@@ -72,27 +73,27 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [logs])
 
-  // Auto-renew token at scheduled ET time
+  // Countdown timer for auto-renew
   useEffect(() => {
-    if (!autoRenewEnabled || !isConnected) return
-
-    let lastFiredDate = null
-
-    const check = () => {
-      const now = new Date()
-      const localTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-      const localDate = now.toDateString()
-
-      if (localTime === autoRenewTime && lastFiredDate !== localDate) {
-        lastFiredDate = localDate
-        fetch(`${API_BASE}/api/refresh-token`, { method: 'POST', headers: authHeaders() }).catch(() => {})
-      }
+    if (!nextRenewAt || !isConnected) {
+      setRenewCountdown('')
+      return
     }
-
-    const interval = setInterval(check, 30_000)
-    check()
+    const tick = () => {
+      const remaining = nextRenewAt - Date.now()
+      if (remaining <= 0) {
+        setRenewCountdown('00:00:00')
+        return
+      }
+      const h = String(Math.floor(remaining / 3600000)).padStart(2, '0')
+      const m = String(Math.floor((remaining % 3600000) / 60000)).padStart(2, '0')
+      const s = String(Math.floor((remaining % 60000) / 1000)).padStart(2, '0')
+      setRenewCountdown(`${h}:${m}:${s}`)
+    }
+    tick()
+    const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [autoRenewEnabled, autoRenewTime, isConnected])
+  }, [nextRenewAt, isConnected])
 
   const loadProfile = (profileId) => {
     const profile = profiles.find(p => p.id === profileId)
@@ -149,8 +150,8 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
     updatePrefs({ autoRenew: { ...prefs.autoRenew, enabled } })
   }
 
-  const handleAutoRenewTimeChange = (time) => {
-    updatePrefs({ autoRenew: { ...prefs.autoRenew, time } })
+  const handleAutoRenewIntervalChange = (intervalHours) => {
+    updatePrefs({ autoRenew: { ...prefs.autoRenew, intervalHours: Math.max(1, parseInt(intervalHours) || 6) } })
   }
 
   const sendTestOrder = async (side) => {
@@ -512,8 +513,8 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-1">
                   <span className="text-sm font-medium text-[var(--color-text-primary)]">Auto-Regenerate Token</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" checked={autoRenewEnabled} onChange={e => handleAutoRenewToggle(e.target.checked)} className="sr-only peer" />
+                  <label className={`relative inline-flex items-center ${isConnected ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}`}>
+                    <input type="checkbox" checked={autoRenewEnabled} onChange={e => handleAutoRenewToggle(e.target.checked)} disabled={isConnected} className="sr-only peer" />
                     <div className="w-8 h-4.5 bg-[var(--color-bg-input)] border border-[var(--color-border)] rounded-full peer peer-checked:bg-[var(--color-accent)] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:after:translate-x-3.5" />
                   </label>
                 </div>
@@ -521,8 +522,15 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
                 {autoRenewEnabled && (
                   <div className="mt-2 flex items-center gap-2">
                     <Clock size={12} className="text-[var(--color-text-secondary)]" />
-                    <input type="time" value={autoRenewTime} onChange={e => handleAutoRenewTimeChange(e.target.value)} className={`${inputClass} max-w-[130px] text-xs`} />
-                    <span className="text-xs text-[var(--color-text-secondary)]">local</span>
+                    <span className="text-xs text-[var(--color-text-secondary)]">Every</span>
+                    <input type="number" min="1" max="23" value={autoRenewInterval} onChange={e => handleAutoRenewIntervalChange(e.target.value)} disabled={isConnected} className={`${inputClass} max-w-[70px] text-xs`} />
+                    <span className="text-xs text-[var(--color-text-secondary)]">hours</span>
+                    {renewCountdown && (
+                      <>
+                        <span className="text-xs text-[var(--color-text-secondary)]">—</span>
+                        <span className="text-xs font-mono text-[var(--color-accent)]">{renewCountdown}</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
