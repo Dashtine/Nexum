@@ -37,6 +37,7 @@ export function useConnection() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Connection failed')
       setIsConnected(true)
+      if (data.nextRenewAt) setNextRenewAt(data.nextRenewAt)
       return data
     } catch (err) {
       setIsConnected(false)

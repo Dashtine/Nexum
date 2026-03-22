@@ -142,7 +142,7 @@ router.post('/connect', async (req, res) => {
     }
 
     broadcast(userId, 'info', `Connected: ${resolvedContractId} on account ${validAccount.name}. Ready for signals.`)
-    res.json({ success: true, accountId: acctId, symbol: resolvedContractId })
+    res.json({ success: true, accountId: acctId, symbol: resolvedContractId, nextRenewAt: session.nextRenewAt || null })
   } catch (err) {
     clearCredentials(session)
     broadcast(userId, 'error', `Connection failed: ${err.message}`)
