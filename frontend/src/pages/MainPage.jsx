@@ -333,6 +333,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
       case 'warn': return 'text-[var(--color-warning)]'
       case 'signal': return 'text-[var(--color-accent)]'
       case 'trade': return 'text-[var(--color-profit)]'
+      case 'alert': return 'text-[var(--color-warning)]'
       default: return 'text-[var(--color-text-secondary)]'
     }
   }
@@ -343,6 +344,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
       case 'warn': return 'bg-[var(--color-warning)]/5'
       case 'signal': return 'bg-[var(--color-accent)]/5'
       case 'trade': return 'bg-[var(--color-profit)]/5'
+      case 'alert': return 'bg-[var(--color-warning)]/5'
       default: return ''
     }
   }
@@ -550,7 +552,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
               <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Logs</h2>
               <span className="text-xs text-[var(--color-text-secondary)]">({logs.length})</span>
               <div className="flex items-center gap-0.5 ml-3 bg-[var(--color-bg-primary)] rounded-lg border border-[var(--color-border)] p-0.5">
-                {['all', 'info', 'trade', 'signal', 'warn', 'error'].map(level => (
+                {['all', 'info', 'trade', 'signal', 'warn', 'error', 'alert'].map(level => (
                   <button
                     key={level}
                     onClick={() => setLogFilter(level)}
@@ -560,7 +562,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
                         : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
                     }`}
                   >
-                    {level}
+                    {level === 'alert' ? 'Alerts' : level}
                   </button>
                 ))}
               </div>
@@ -576,7 +578,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
               <p className="text-[var(--color-text-secondary)] text-center py-8">No logs yet. Connect to TopstepX to start.</p>
             ) : (
               <div className="flex flex-col gap-0.5">
-                {logs.filter(log => logFilter === 'all' || log.level === logFilter).map(log => (
+                {logs.filter(log => logFilter === 'all' ? log.level !== 'alert' : log.level === logFilter).map(log => (
                   <div key={log.id} className={`flex gap-2 px-2 py-1 rounded ${getLevelBg(log.level)}`}>
                     <span className="text-[var(--color-text-secondary)] shrink-0 whitespace-nowrap">
                       {new Date(log.time).toLocaleTimeString()}

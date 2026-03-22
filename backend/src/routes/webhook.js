@@ -59,6 +59,12 @@ router.post('/:userId', async (req, res) => {
     return res.status(503).json({ error: 'Not connected. Connect first via the web app.' })
   }
 
+  // Log raw alert message
+  const rawText = typeof req.body === 'string'
+    ? req.body
+    : req.body.message || req.body.alert || JSON.stringify(req.body)
+  broadcast(userId, 'alert', rawText)
+
   const parsed = parseAlertFields(req.body)
   const { isTest, side, size, takeProfitPrice, stopLossPrice, takeProfitTicks, stopLossTicks } = parsed
 
