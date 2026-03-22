@@ -102,7 +102,8 @@ router.post('/:userId', async (req, res) => {
       })
 
       const elapsed = Date.now() - start
-      broadcast(userId, 'trade', `TEST bracket placed: ${side.toUpperCase()} ${size}x ${contractId}`)
+      const sym = session.inputSymbol || contractId
+      broadcast(userId, 'trade', `TEST bracket placed: ${side.toUpperCase()} ${size}x ${sym}`)
 
       return res.json({
         success: true,
@@ -116,6 +117,8 @@ router.post('/:userId', async (req, res) => {
     }
 
     // Normal flow: price-based TP/SL as separate orders
+    broadcast(userId, 'signal', `${side.toUpperCase()} ${size}x | TP: ${takeProfitPrice} | SL: ${stopLossPrice}`)
+
     const entryOrder = await placeMarketOrder(session, {
       accountId: session.accountId,
       contractId,
@@ -150,7 +153,8 @@ router.post('/:userId', async (req, res) => {
     })
 
     const elapsed = Date.now() - start
-    broadcast(userId, 'trade', `Bracket placed: ${side.toUpperCase()} ${size}x ${contractId}`)
+    const sym = session.inputSymbol || contractId
+    broadcast(userId, 'trade', `Bracket placed: ${side.toUpperCase()} ${size}x ${sym}`)
 
     return res.json({
       success: true,

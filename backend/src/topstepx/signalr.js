@@ -9,6 +9,8 @@ import { broadcast } from '../logs.js'
 
 const USER_HUB_URL = 'https://rtc.topstepx.com/hubs/user'
 
+const STATUS_NAMES = { 1: 'Pending', 2: 'Working', 3: 'Rejected', 4: 'Filled', 5: 'Canceled', 6: 'Expired' }
+
 // Connects to the TopstepX SignalR hub for a specific user session.
 export async function connectSignalR(session, token, accountIds) {
   if (!token) {
@@ -56,7 +58,7 @@ export async function connectSignalR(session, token, accountIds) {
     updatePosition(pos)
 
     if (pos.size === 0 || action === 2) {
-      broadcast(userId, 'trade', `Position closed: ${pos.contractId}`)
+      broadcast(userId, 'trade', `Position closed: ${session.inputSymbol || pos.contractId}`)
 
       const bracket = getBracket(pos.accountId, pos.contractId)
 
@@ -69,7 +71,7 @@ export async function connectSignalR(session, token, accountIds) {
 
             if (result?.success) {
               console.log(`[signalr:${userId}] canceled leftover exit order ${orderId} for ${pos.contractId}`)
-              broadcast(userId, 'info', `Canceled remaining exit order ${orderId}`)
+              broadcast(userId, 'info', 'Canceled remaining bracket order')
             } else {
               console.log(
                 `[signalr:${userId}] exit order ${orderId} was already inactive: ${result?.errorMessage || 'no-op'}`
@@ -83,7 +85,7 @@ export async function connectSignalR(session, token, accountIds) {
         clearBracket(pos.accountId, pos.contractId)
       }
     } else {
-      broadcast(userId, 'info', `Position update: ${pos.contractId} size=${pos.size}`)
+      broadcast(userId, 'info', `Position update: ${session.inputSymbol || pos.contractId} × ${pos.size}`)
     }
   })
 
@@ -102,7 +104,8 @@ export async function connectSignalR(session, token, accountIds) {
     )
 
     updateOrder(order)
-    broadcast(userId, 'info', `Order ${order.id}: status=${order.status}`)
+    const statusName = STATUS_NAMES[order.status] || `status ${order.status}`
+    broadcast(userId, 'info', `Order ${statusName.toLowerCase()}`)
   })
 
   // Trade executions
@@ -112,10 +115,11 @@ export async function connectSignalR(session, token, accountIds) {
 
     console.log(`[signalr:${userId}] trade: ${side} ${data.contractId} pnl=${pnl} acct=${data.accountId}`)
 
+    const sym = session.inputSymbol || data.contractId
     if (pnl !== undefined && pnl !== 0) {
-      broadcast(userId, 'trade', `Trade closed: ${side} ${data.contractId} P&L: $${pnl}`)
+      broadcast(userId, 'trade', `Trade closed: ${side} ${sym} P&L: $${pnl}`)
     } else {
-      broadcast(userId, 'trade', `Trade fill: ${side} ${data.size || 1}x ${data.contractId} @ ${data.price}`)
+      broadcast(userId, 'trade', `Trade fill: ${side} ${data.size || 1}x ${sym} @ ${data.price}`)
     }
   })
 
@@ -136,12 +140,12 @@ export async function connectSignalR(session, token, accountIds) {
 
   connection.onreconnecting((err) => {
     console.log(`[signalr:${userId}] reconnecting...`, err?.message)
-    broadcast(userId, 'warn', 'SignalR reconnecting...')
+    broadcast(userId, 'warn', 'Reconnecting to real-time feed...')
   })
 
   connection.onreconnected(async () => {
     console.log(`[signalr:${userId}] reconnected, resubscribing...`)
-    broadcast(userId, 'info', 'SignalR reconnected')
+    broadcast(userId, 'info', 'Real-time feed reconnected')
 
     session.accountsSubscriptionActive = false
 
@@ -154,7 +158,7 @@ export async function connectSignalR(session, token, accountIds) {
     console.log(`[signalr:${userId}] connection closed`, err?.message)
 
     if (!session.intentionalClose) {
-      broadcast(userId, 'warn', 'SignalR connection closed')
+      broadcast(userId, 'warn', 'Real-time feed disconnected')
     }
   })
 

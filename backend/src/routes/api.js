@@ -92,7 +92,7 @@ router.post('/connect', async (req, res) => {
       return res.status(400).json({ error: `Account "${accountId}" not found. Available: ${accounts.map(a => a.name).join(', ')}` })
     }
     const acctId = validAccount.id
-    broadcast(userId, 'info', `Account validated: ${validAccount.name} (${validAccount.id})`)
+    broadcast(userId, 'info', `Account validated: ${validAccount.name}`)
 
     // 3. Resolve symbol to full contract ID
     broadcast(userId, 'info', `Searching for contract: ${symbol}...`)
@@ -102,7 +102,7 @@ router.post('/connect', async (req, res) => {
       const contracts = await searchContracts(session, symbol, isLive)
       if (contracts.length > 0) {
         resolvedContractId = contracts[0].id
-        broadcast(userId, 'info', `Contract resolved: ${resolvedContractId}`)
+        broadcast(userId, 'info', `Contract: ${symbol} → ${resolvedContractId}`)
       } else {
         broadcast(userId, 'warn', `No contracts found for "${symbol}" — using as-is`)
       }
@@ -121,10 +121,8 @@ router.post('/connect', async (req, res) => {
       broadcast(userId, 'warn', `Could not load positions: ${err.message}`)
     }
 
-    // 5. Connect SignalR
-    broadcast(userId, 'info', 'Connecting to real-time feed...')
+    // 5. Connect to real-time feed
     await connectSignalR(session, token, [acctId])
-    broadcast(userId, 'info', 'SignalR connected — listening for updates')
 
     // 6. Start token refresh and store session
     startTokenRefresh(session)
@@ -141,7 +139,7 @@ router.post('/connect', async (req, res) => {
       startAutoRenew(session, userId, autoRenew.intervalHours)
     }
 
-    broadcast(userId, 'info', `Connected: ${resolvedContractId} on account ${validAccount.name}. Ready for signals.`)
+    broadcast(userId, 'info', `Connected: ${symbol} on ${validAccount.name}. Ready for signals.`)
     res.json({ success: true, accountId: acctId, symbol: resolvedContractId, nextRenewAt: session.nextRenewAt || null })
   } catch (err) {
     clearCredentials(session)
@@ -194,7 +192,7 @@ router.post('/refresh-token', async (req, res) => {
   }
   try {
     await getToken(session)
-    broadcast(userId, 'info', 'Token refreshed (scheduled)')
+    broadcast(userId, 'info', 'Token refreshed')
     res.json({ success: true })
   } catch (err) {
     broadcast(userId, 'error', `Token refresh failed: ${err.message}`)
@@ -237,7 +235,7 @@ router.post('/bars', async (req, res) => {
     const data = await response.json()
     res.json({ success: data.success, bars: data.bars || [], errorMessage: data.errorMessage })
   } catch (err) {
-    broadcast(userId, 'error', `Bar retrieval failed: ${err.message}`)
+    broadcast(userId, 'error', `Candle data export failed: ${err.message}`)
     res.status(500).json({ error: err.message })
   }
 })
