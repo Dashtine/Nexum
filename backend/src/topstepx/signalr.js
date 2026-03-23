@@ -57,6 +57,9 @@ export async function connectSignalR(session, token, accountIds) {
 
     updatePosition(pos)
 
+    // Only broadcast/handle for this session's contract
+    if (session.contractId && pos.contractId !== session.contractId) return
+
     if (pos.size === 0 || action === 2) {
       broadcast(userId, 'trade', `Position closed: ${session.inputSymbol || pos.contractId}`)
 
@@ -104,6 +107,10 @@ export async function connectSignalR(session, token, accountIds) {
     )
 
     updateOrder(order)
+
+    // Only broadcast for this session's contract
+    if (session.contractId && order.contractId && order.contractId !== session.contractId) return
+
     const statusName = STATUS_NAMES[order.status] || `status ${order.status}`
     broadcast(userId, 'info', `Order ${statusName.toLowerCase()}`)
   })
@@ -114,6 +121,9 @@ export async function connectSignalR(session, token, accountIds) {
     const pnl = data.profitAndLoss
 
     console.log(`[signalr:${userId}] trade: ${side} ${data.contractId} pnl=${pnl} acct=${data.accountId}`)
+
+    // Only broadcast for this session's contract
+    if (session.contractId && data.contractId !== session.contractId) return
 
     const sym = session.inputSymbol || data.contractId
     if (pnl !== undefined && pnl !== 0) {

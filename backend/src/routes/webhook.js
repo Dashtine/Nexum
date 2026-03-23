@@ -3,7 +3,7 @@
 
 import { Router } from 'express'
 import { placeMarketOrder, placeLimitOrder, placeStopOrder } from '../topstepx/orders.js'
-import { hasOpenPosition } from '../topstepx/state.js'
+import { hasOpenPositionForContract } from '../topstepx/state.js'
 import { registerBracket } from '../topstepx/brackets.js'
 import { getSession } from '../sessions.js'
 import { broadcast } from '../logs.js'
@@ -80,12 +80,12 @@ router.post('/:userId', async (req, res) => {
     return res.status(400).json({ error: 'Could not parse Take Profit / Stop Loss prices' })
   }
 
-  if (hasOpenPosition(session.accountId)) {
+  const contractId = req.body.contractId || session.contractId
+
+  if (hasOpenPositionForContract(session.accountId, contractId)) {
     broadcast(userId, 'warn', 'Position already open — skipping signal')
     return res.status(409).json({ error: 'Position already open. Only one trade at a time.' })
   }
-
-  const contractId = req.body.contractId || session.contractId
 
   try {
     if (isTest) {

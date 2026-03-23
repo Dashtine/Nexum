@@ -9,7 +9,6 @@ const positions = new Map()
 const orders = new Map()
 
 // Checks if any position is open for the given account. O(1) lookup.
-// Called by: webhook.js before placing an order.
 export function hasOpenPosition(accountId) {
   const acctPositions = positions.get(accountId)
   if (!acctPositions) return false
@@ -17,6 +16,13 @@ export function hasOpenPosition(accountId) {
     if (pos.size !== 0) return true
   }
   return false
+}
+
+// Checks if a position is open for a specific contract on an account.
+// Called by: webhook.js before placing an order (supports multi-symbol per account).
+export function hasOpenPositionForContract(accountId, contractId) {
+  const pos = positions.get(accountId)?.get(contractId)
+  return pos ? pos.size !== 0 : false
 }
 
 // Returns a specific position by account and contract, or null.
