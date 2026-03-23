@@ -5,7 +5,7 @@ import { useConnection } from '../hooks/useConnection'
 import { useLogs } from '../hooks/useLogs'
 import { API_BASE, getUserId, authHeaders } from '../utils/auth'
 
-const SYMBOLS = ['NQ', 'MNQ', 'GC', 'MGC']
+const SYMBOLS = ['NQ', 'MNQ', 'ES', 'MES', 'GC', 'MGC']
 
 export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile, onDeleteProfile, schemeId, onSetColorScheme, onLogout, prefs, updatePrefs }) {
   const { isConnected, isConnecting, connectionInfo, nextRenewAt, connect, disconnect } = useConnection()
