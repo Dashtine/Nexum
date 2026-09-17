@@ -31,6 +31,7 @@ jobs:
         run: |
           node --check src/server.js
           node --check src/nexumAuth.js
+          node --check src/alertParser.js
           node --check src/routes/api.js
           node --check src/routes/webhook.js
           node --check src/topstepx/auth.js
@@ -38,6 +39,9 @@ jobs:
           node --check src/topstepx/signalr.js
           node --check src/topstepx/state.js
           node --check src/topstepx/brackets.js
+
+      - name: Run backend tests
+        run: npm test
 
   frontend-check:
     runs-on: ubuntu-latest
