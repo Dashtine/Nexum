@@ -24,6 +24,9 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // This project intentionally restores persisted UI state from effects.
+      // Keep the broader hooks rules enabled while allowing that pattern.
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])
