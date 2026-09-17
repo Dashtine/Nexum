@@ -1,49 +1,86 @@
 # Nexum
 
-Nexum is a self-hosted trading bridge that connects [TradingView](https://www.tradingview.com/) alerts to [TopstepX](https://www.topstepx.com/) for automated futures order execution. It receives webhook signals, places market orders with bracket exits (take-profit and stop-loss), and manages positions in real time via SignalR.
+Nexum is a self-hosted, real-time trading automation platform that connects TradingView alerts to TopstepX for futures order execution. It combines a Node.js/Express backend, React frontend, REST integrations, SignalR event streams, JWT authentication, per-user session isolation, bracket-order management, and browser-based monitoring.
+
+The project is presented primarily as a software engineering portfolio project focused on API integration, real-time systems, state management, authentication, reliability, and full-stack application design.
+
+## Engineering Highlights
+
+- **Node.js + Express backend** for authentication, REST endpoints, webhook ingestion, user sessions, and order workflows
+- **React + Vite frontend** for connection management, saved profiles, testing tools, live logs, and candle-data export
+- **TopstepX REST API integration** for authentication, account discovery, contract lookup, market history, and order placement
+- **SignalR integration** for live position, order, and trade events
+- **JWT authentication** with bcrypt-backed user credentials and per-user backend session isolation
+- **Contract-scoped position guards** so multiple symbols can be handled independently without duplicate entries on the same contract
+- **Bracket-order state management** for take-profit and stop-loss coordination
+- **Server-Sent Events (SSE)** for real-time application logs
+- **Server-side token renewal** so scheduled authentication refreshes continue even when the browser is closed
+- **Per-user preferences and log history** for cross-device continuity
+- **Historical candle export** with pagination, timestamp conversion, deduplication, and CSV generation
+
+## Architecture
+
+```text
+TradingView Alert
+      |
+      v
+Public Webhook Route
+      |
+      +--> Validate signal + session state
+      |
+      +--> Position guard
+      |
+      +--> TopstepX REST API ------> Market / limit / stop orders
+      |
+      +--> Bracket state
+      |
+      v
+TopstepX SignalR Hub -------------> Live position / order / trade events
+      |
+      v
+Per-user backend session
+      |
+      +--> SSE log stream
+      +--> Preferences / session data
+      |
+      v
+React Dashboard
+```
+
+## Repository Structure
+
+### Backend (`/backend`)
+
+- `src/server.js` - Express entry point, authentication routes, SSE logging, health check, and graceful shutdown
+- `src/nexumAuth.js` - JWT verification and bcrypt-backed user authentication
+- `src/sessions.js` - per-user runtime session state
+- `src/routes/api.js` - authenticated API routes for connection management, status, preferences, token refresh, and candle data
+- `src/routes/webhook.js` - TradingView alert parsing, validation, duplicate-position protection, and order flow
+- `src/topstepx/auth.js` - TopstepX authentication and token lifecycle
+- `src/topstepx/orders.js` - account, contract, position, and order operations
+- `src/topstepx/signalr.js` - real-time user hub connection and event handling
+- `src/topstepx/brackets.js` - bracket-order tracking
+- `src/topstepx/state.js` - in-memory position state and contract-scoped lookups
+- `src/logs.js` - SSE broadcast and server-side log history
+
+### Frontend (`/frontend`)
+
+React + Vite + Tailwind CSS single-page application with reusable hooks for connection state, logs, preferences, theme, and profile management.
 
 ## How It Works
 
-```
-TradingView Alert ──► Nexum Backend (webhook) ──► TopstepX API (order placement)
-                                │
-                                ├── SignalR (real-time position/order/trade updates)
-                                │
-                         Nexum Frontend (web dashboard)
-```
-
-1. **Connect** — Enter your TopstepX credentials and select an account/symbol in the web dashboard.
-2. **Receive signals** — TradingView sends webhook alerts to your Nexum endpoint.
-3. **Execute trades** — Nexum parses the signal, checks for open positions, and places bracket orders on TopstepX.
-4. **Monitor** — Real-time logs stream position updates, trade fills, and P&L to the dashboard.
-
-## Features
-
-- **Webhook receiver** — Parses TradingView alert format with position side, size, take-profit, and stop-loss
-- **Bracket orders** — Automatically places TP/SL exit orders alongside the entry, with OCO-style cleanup via SignalR
-- **One-position guard** — Rejects new signals if a position is already open (prevents stacking)
-- **Real-time updates** — SignalR connection streams position, order, and trade events to the dashboard
-- **Token management** — Auto-refreshes TopstepX auth tokens with optional scheduled renewal
-- **Multi-profile** — Save and switch between multiple account configurations
-- **Test mode** — Send test orders with tick-based brackets directly from the dashboard
-- **Candle export** — Download historical OHLCV data as CSV with automatic pagination
-- **Theming** — Light/dark mode with five color schemes
-
-## Web Dashboard
-
-The frontend provides a single-page control panel for:
-
-- Connecting/disconnecting from TopstepX
-- Viewing real-time log stream with level filtering (All, Info, Trade, Signal, Warn, Error)
-- Sending test buy/sell orders
-- Managing saved connection profiles
-- Exporting historical candle data to CSV
+1. A user signs into Nexum and connects a TopstepX account and contract.
+2. The backend authenticates with TopstepX, resolves the account and contract, seeds open-position state, and connects to the SignalR user hub.
+3. TradingView sends an alert to the user's webhook endpoint.
+4. Nexum parses and validates the signal, checks for an existing position on that contract, and places the entry and exit orders.
+5. SignalR events keep position and order state synchronized in real time.
+6. Logs are streamed to the React dashboard through SSE.
 
 ## Webhook Format
 
-Nexum expects alerts in this format (JSON body or plain text):
+Nexum accepts alerts in this format:
 
-```
+```text
 Position: BUY
 Contracts: 1
 Take Profit: 24700.00
@@ -57,9 +94,9 @@ Stop Loss: 24645.25
 | `Take Profit` | Yes | Exit limit price |
 | `Stop Loss` | Yes | Exit stop price |
 
-**Test mode** — Prefix with `TEST` and use tick-based brackets instead:
+Test signals can use tick-based brackets:
 
-```
+```text
 TEST
 Position: BUY
 Contracts: 1
@@ -67,36 +104,49 @@ TpTicks: 40
 SlTicks: 20
 ```
 
-### Webhook Security
+## Security
 
-Set `WEBHOOK_SECRET` in your backend `.env` file. TradingView must send the matching value in the `x-webhook-secret` header.
+- `.env` files are excluded from Git
+- `JWT_SECRET` is required at startup and has no hardcoded production fallback
+- webhook authentication can be enabled with `WEBHOOK_SECRET`
+- local user credential files and per-user application data are excluded from Git
+- passwords are stored as bcrypt hashes rather than plaintext
 
-## Architecture
+Copy `backend/.env.example` to your local environment configuration and provide your own secrets. Never commit real TopstepX credentials, JWT secrets, or webhook secrets.
 
-### Backend (`/backend`)
+## Development Approach
 
-Node.js + Express server handling:
+Nexum was built using an AI-assisted development workflow. I defined the product requirements and system behavior, made architecture and integration decisions, reviewed implementation output, debugged API and real-time-event issues, validated behavior against TopstepX, and tested the application while using Claude Code to accelerate implementation and iteration.
 
-- **`src/server.js`** — Entry point, Express setup, SSE log endpoint
-- **`src/routes/api.js`** — REST API for connect, disconnect, status, token refresh, candle data
-- **`src/routes/webhook.js`** — Webhook handler: parses signal, validates, places orders
-- **`src/topstepx/auth.js`** — Authentication and token lifecycle
-- **`src/topstepx/orders.js`** — Order placement (market, limit, stop) and contract/position search
-- **`src/topstepx/signalr.js`** — Real-time hub connection for position/order/trade updates
-- **`src/topstepx/brackets.js`** — In-memory bracket tracking for OCO exit cleanup
-- **`src/topstepx/state.js`** — In-memory position and order state (O(1) lookups)
-- **`src/logs.js`** — SSE broadcaster for real-time log streaming to frontend
+The goal of the project was not simply to generate code, but to use AI tooling as part of an engineering workflow while retaining responsibility for requirements, technical decisions, validation, and debugging.
 
-### Frontend (`/frontend`)
+## Tech Stack
 
-React + Vite + Tailwind CSS single-page dashboard.
+**Frontend:** React, Vite, Tailwind CSS, JavaScript  
+**Backend:** Node.js, Express, JWT, bcrypt  
+**Real-time:** SignalR, Server-Sent Events  
+**Integrations:** TopstepX REST API, TopstepX SignalR hub, TradingView webhooks
 
-## TopstepX API Reference
+## Running Locally
 
-- **REST API** — `https://api.topstepx.com` ([Swagger spec](backend/topstepxapi.json) included in this repo)
-- **SignalR Hub** — `https://rtc.topstepx.com/hubs/user`
-- **TopstepX API Docs** — [https://topstepx.com/api-documentation/](https://topstepx.com/api-documentation/)
+Backend:
 
-## License
+```bash
+cd backend
+npm install
+npm run dev
+```
 
-Private — not for redistribution.
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The backend requires environment values such as `JWT_SECRET` and any TopstepX/webhook credentials used by your local setup.
+
+## Project Status
+
+Nexum is an independently directed full-stack engineering project. It is not financial advice and should not be treated as a production trading service without independent testing, security review, monitoring, and operational controls.

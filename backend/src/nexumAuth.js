@@ -8,7 +8,11 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const JWT_SECRET = process.env.JWT_SECRET || 'nexum-change-this-secret'
+const JWT_SECRET = process.env.JWT_SECRET
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET is required. Set it in the backend environment before starting Nexum.')
+}
 
 // Load users from users.json: { "userId": "bcryptHash", ... }
 let users = {}

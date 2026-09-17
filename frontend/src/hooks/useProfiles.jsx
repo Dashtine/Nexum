@@ -22,10 +22,6 @@ export function useProfiles(userId) {
     } catch { setProfiles([]) }
   }, [storageKey])
 
-  const persist = (updated) => {
-    localStorage.setItem(storageKey, JSON.stringify(updated))
-  }
-
   const saveProfile = useCallback((data) => {
     setProfiles(prev => {
       const existing = prev.findIndex(p => p.id === data.id)
