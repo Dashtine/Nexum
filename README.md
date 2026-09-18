@@ -1,8 +1,18 @@
 # Nexum
 
+[![CI](https://github.com/Dashtine/Nexum/actions/workflows/ci.yml/badge.svg)](https://github.com/Dashtine/Nexum/actions/workflows/ci.yml)
+
 Nexum is a self-hosted, real-time trading automation platform that connects TradingView alerts to TopstepX for futures order execution. It combines a Node.js/Express backend, React frontend, REST integrations, SignalR event streams, JWT authentication, per-user session isolation, bracket-order management, and browser-based monitoring.
 
-The project is presented primarily as a software engineering portfolio project focused on API integration, real-time systems, state management, authentication, reliability, and full-stack application design.
+## At a Glance
+
+| Area | Details |
+|---|---|
+| Frontend | React, Vite, Tailwind CSS |
+| Backend | Node.js, Express, JWT, bcrypt |
+| Real-time | SignalR + Server-Sent Events |
+| Integrations | TopstepX REST API, TopstepX SignalR hub, TradingView webhooks |
+| Architecture | per-user sessions, contract-scoped state, bracket-order coordination |
 
 ## Engineering Highlights
 
@@ -20,32 +30,33 @@ The project is presented primarily as a software engineering portfolio project f
 
 ## Architecture
 
-```text
-TradingView Alert
-      |
-      v
-Public Webhook Route
-      |
-      +--> Validate signal + session state
-      |
-      +--> Position guard
-      |
-      +--> TopstepX REST API ------> Market / limit / stop orders
-      |
-      +--> Bracket state
-      |
-      v
-TopstepX SignalR Hub -------------> Live position / order / trade events
-      |
-      v
-Per-user backend session
-      |
-      +--> SSE log stream
-      +--> Preferences / session data
-      |
-      v
-React Dashboard
+```mermaid
+flowchart TD
+    A[TradingView Alert] --> B[Public Webhook Route]
+    B --> C[Parse + Validate Signal]
+    C --> D[Per-User Session + Contract Position Guard]
+    D --> E[TopstepX REST API]
+    E --> F[Market / Limit / Stop Orders]
+    F --> G[Bracket State]
+    F --> H[TopstepX SignalR Hub]
+    H --> I[Live Position / Order / Trade Events]
+    I --> D
+    D --> J[SSE Log Stream]
+    D --> K[Preferences / Session Data]
+    J --> L[React Dashboard]
+    K --> L
 ```
+
+## What This Project Demonstrates
+
+Nexum focuses on modern full-stack and real-time application engineering:
+
+- separating API, authentication, order, real-time, and session concerns into backend modules
+- maintaining isolated runtime state for multiple users and contracts
+- combining REST commands with SignalR events and SSE browser updates
+- designing authentication and credential boundaries for a self-hosted application
+- building a React interface around asynchronous backend state
+- validating third-party API behavior and iterating on failure cases
 
 ## Repository Structure
 
@@ -55,7 +66,8 @@ React Dashboard
 - `src/nexumAuth.js` - JWT verification and bcrypt-backed user authentication
 - `src/sessions.js` - per-user runtime session state
 - `src/routes/api.js` - authenticated API routes for connection management, status, preferences, token refresh, and candle data
-- `src/routes/webhook.js` - TradingView alert parsing, validation, duplicate-position protection, and order flow
+- `src/routes/webhook.js` - TradingView alert validation, duplicate-position protection, and order flow
+- `src/alertParser.js` - isolated alert parsing used by the webhook flow and automated tests
 - `src/topstepx/auth.js` - TopstepX authentication and token lifecycle
 - `src/topstepx/orders.js` - account, contract, position, and order operations
 - `src/topstepx/signalr.js` - real-time user hub connection and event handling
