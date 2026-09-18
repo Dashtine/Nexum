@@ -5,6 +5,14 @@ import { getToken, getUserId, clearAuth } from './utils/auth'
 import LoginOverlay from './components/LoginOverlay'
 import MainPage from './pages/MainPage'
 
+function sanitizeProfileData(data) {
+  const safe = { ...data }
+  delete safe.apiKey
+  delete safe.token
+  delete safe.token_expiry
+  return safe
+}
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!getToken())
   const [userId, setUserId] = useState(() => getUserId())
@@ -32,14 +40,15 @@ function App() {
   }, [updatePrefs])
 
   const saveProfile = useCallback((data) => {
-    const existing = profiles.findIndex(p => p.id === data.id)
+    const safeData = sanitizeProfileData(data)
+    const existing = profiles.findIndex(p => p.id === safeData.id)
     let updated
     if (existing >= 0) {
       updated = [...profiles]
-      updated[existing] = { ...data }
+      updated[existing] = safeData
     } else {
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7)
-      updated = [...profiles, { ...data, id }]
+      updated = [...profiles, { ...safeData, id }]
     }
     updatePrefs({ profiles: updated })
   }, [profiles, updatePrefs])
