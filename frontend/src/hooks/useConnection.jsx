@@ -16,7 +16,6 @@ export function useConnection() {
         if (data.connected) {
           setConnectionInfo({
             username: data.username,
-            apiKey: data.apiKey,
             accountId: data.inputAccountId,
             symbol: data.inputSymbol
           })
