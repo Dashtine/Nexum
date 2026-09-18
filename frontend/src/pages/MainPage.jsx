@@ -51,13 +51,11 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
   useEffect(() => {
     if (connectionInfo) {
       if (connectionInfo.username) setUsername(connectionInfo.username)
-      if (connectionInfo.apiKey) setApiKey(connectionInfo.apiKey)
       if (connectionInfo.accountId) setAccountId(connectionInfo.accountId)
       if (connectionInfo.symbol) setSelectedSymbol(connectionInfo.symbol)
-      // Find matching profile
+      // Find matching profile by non-sensitive connection metadata.
       const match = profiles.find(p =>
         p.username === connectionInfo.username &&
-        p.apiKey === connectionInfo.apiKey &&
         p.accountId === connectionInfo.accountId &&
         p.symbol === connectionInfo.symbol
       )
@@ -109,7 +107,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
     setSelectedProfileId(profile.id)
     setProfileName(profile.name)
     setUsername(profile.username)
-    setApiKey(profile.apiKey)
+    setApiKey('')
     setAccountId(profile.accountId)
     setSelectedSymbol(profile.symbol || 'NQ')
   }
@@ -119,7 +117,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
     onSaveProfile({
       id: selectedProfileId || undefined,
       name: profileName.trim(),
-      username, apiKey, accountId,
+      username, accountId,
       symbol: selectedSymbol,
     })
     setShowSaveInput(false)
@@ -129,7 +127,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
     if (!profileName.trim()) return
     onSaveProfile({
       name: profileName.trim(),
-      username, apiKey, accountId,
+      username, accountId,
       symbol: selectedSymbol,
     })
     setShowSaveInput(false)
@@ -472,7 +470,7 @@ export default function MainPage({ isDark, toggleTheme, profiles, onSaveProfile,
             <div>
               <label className={labelClass}>API Key</label>
               <div className="relative">
-                <input type={showApiKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} disabled={isConnected} placeholder="Your API key" className={inputClass} />
+                <input type={showApiKey ? 'text' : 'password'} value={apiKey} onChange={e => setApiKey(e.target.value)} disabled={isConnected} placeholder="Enter for this session" className={inputClass} />
                 <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
                   {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>

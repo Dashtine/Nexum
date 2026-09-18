@@ -121,6 +121,8 @@ SlTicks: 20
 - `.env` files are excluded from Git
 - `JWT_SECRET` is required at startup and has no hardcoded production fallback
 - webhook authentication can be enabled with `WEBHOOK_SECRET`
+- saved profiles and UI preferences strip API keys and tokens before local or server persistence
+- the status endpoint reports connection state without returning the stored TopstepX API key
 - local user credential files and per-user application data are excluded from Git
 - passwords are stored as bcrypt hashes rather than plaintext
 

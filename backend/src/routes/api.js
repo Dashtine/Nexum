@@ -11,6 +11,7 @@ import { searchOpenPositions, searchContracts } from '../topstepx/orders.js'
 import { updatePosition, clearPositions } from '../topstepx/state.js'
 import { broadcast } from '../logs.js'
 import { getSession, clearSessionState } from '../sessions.js'
+import { sanitizePreferences } from '../preferences.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', '..', 'data')
@@ -22,16 +23,30 @@ function prefsPath(userId) {
   return join(DATA_DIR, `${userId}.json`)
 }
 
+function defaultPrefs() {
+  return { profiles: [], colorScheme: 'amber', theme: 'dark', autoRenew: { enabled: false, intervalHours: 6 } }
+}
+
 function loadPrefs(userId) {
   try {
-    return JSON.parse(readFileSync(prefsPath(userId), 'utf-8'))
+    const path = prefsPath(userId)
+    const raw = JSON.parse(readFileSync(path, 'utf-8'))
+    const sanitized = sanitizePreferences(raw)
+
+    // Migrate any legacy preference files that still contain secrets.
+    if (JSON.stringify(raw) !== JSON.stringify(sanitized)) {
+      writeFileSync(path, JSON.stringify(sanitized, null, 2))
+    }
+
+    return { ...defaultPrefs(), ...sanitized }
   } catch {
-    return { profiles: [], colorScheme: 'amber', theme: 'dark', autoRenew: { enabled: false, intervalHours: 6 } }
+    return defaultPrefs()
   }
 }
 
 function savePrefs(userId, prefs) {
-  writeFileSync(prefsPath(userId), JSON.stringify(prefs, null, 2))
+  const sanitized = sanitizePreferences(prefs)
+  writeFileSync(prefsPath(userId), JSON.stringify(sanitized, null, 2))
 }
 
 function startAutoRenew(session, userId, intervalHours) {
@@ -175,7 +190,7 @@ router.get('/status', (req, res) => {
     accountId: session.accountId,
     symbol: session.contractId,
     username: session.storedUsername || null,
-    apiKey: session.storedApiKey || null,
+    hasCredentials: Boolean(session.storedUsername && session.storedApiKey),
     inputAccountId: session.inputAccountId || null,
     inputSymbol: session.inputSymbol || null,
     nextRenewAt: session.nextRenewAt || null
