@@ -30,6 +30,7 @@ jobs:
       - name: Check backend syntax
         run: |
           node --check src/server.js
+          node --check src/preferences.js
           node --check src/nexumAuth.js
           node --check src/alertParser.js
           node --check src/routes/api.js
